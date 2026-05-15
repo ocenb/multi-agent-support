@@ -5,7 +5,9 @@ description = "AI-powered customer support automation using Langflow, RAG, Tool 
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fastapi>=0.121.1",
     "langflow>=1.8.4",
+    "uvicorn>=0.38.0",
 ]
 
 [dependency-groups]

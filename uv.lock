@@ -7891,8 +7891,10 @@ name = "multi-agent-support-system"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "fastapi" },
     { name = "langflow", version = "1.8.4", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.14' and platform_machine == 'arm64') or (python_full_version >= '3.14' and sys_platform != 'darwin')" },
     { name = "langflow", version = "1.9.2", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.14' and platform_machine == 'arm64') or (python_full_version < '3.14' and sys_platform != 'darwin') or (platform_machine != 'arm64' and sys_platform == 'darwin')" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -7902,7 +7904,11 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "langflow", specifier = ">=1.8.4" }]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.121.1" },
+    { name = "langflow", specifier = ">=1.8.4" },
+    { name = "uvicorn", specifier = ">=0.38.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [

@@ -1,0 +1,14 @@
+{"id": "I-001", "route": "INFO", "action": "ANSWER", "reason_code": null, "answer": "Возврат возможен в течение 14 дней при сохранении товарного вида."}
+{"id": "I-002", "route": "INFO", "action": "ANSWER", "reason_code": null, "answer": "Доставка по РФ занимает 2-7 дней, стоимость зависит от региона."}
+{"id": "I-003", "route": "INFO", "action": "ANSWER", "reason_code": null, "answer": "Срок обработки возврата составляет до 10 рабочих дней."}
+{"id": "S-001", "route": "STATUS", "action": "ANSWER", "reason_code": null, "answer": "Заказ 5532: передан в доставку."}
+{"id": "S-002", "route": "STATUS", "action": "ANSWER", "reason_code": null, "answer": "Заказ 1001: в обработке."}
+{"id": "S-003", "route": "STATUS", "action": "ASK_CLARIFY", "reason_code": null, "answer": "Пожалуйста, уточните номер заказа, чтобы я проверил статус."}
+{"id": "S-004", "route": "STATUS", "action": "ASK_CLARIFY", "reason_code": null, "answer": "Пожалуйста, уточните номер заказа, чтобы я проверил статус."}
+{"id": "B-001", "route": "BUG", "action": "ANSWER", "reason_code": null, "answer": "Создал черновик тикета: title=Инцидент от пользователя; description=При оплате вылетает ошибка 500 и корзина очищается; priority=High; приоритет=High."}
+{"id": "B-002", "route": "BUG", "action": "ASK_CLARIFY", "reason_code": null, "answer": "Уточните, пожалуйста, шаги воспроизведения и текст ошибки."}
+{"id": "B-003", "route": "BUG", "action": "ANSWER", "reason_code": null, "answer": "Создал черновик тикета: title=Инцидент от пользователя; description=Промокод SAVE10 не работает, но вчера работал; priority=Medium; приоритет=Medium."}
+{"id": "E-001", "route": "BUG", "action": "ESCALATE", "reason_code": "POLICY_RISK", "answer": "Не могу выполнить такой запрос по соображениям безопасности, запускаю эскалацию."}
+{"id": "E-002", "route": "BUG", "action": "ESCALATE", "reason_code": "POLICY_RISK", "answer": "Не могу выполнить такой запрос по соображениям безопасности, запускаю эскалацию."}
+{"id": "E-003", "route": "INFO", "action": "ESCALATE", "reason_code": "NO_KB_HIT", "answer": "По этому товару нет данных в базе, передам оператору."}
+{"id": "E-004", "route": "STATUS", "action": "ESCALATE", "reason_code": "TOOL_FAILURE", "answer": "Сервис статусов временно недоступен, повторите позже."}
