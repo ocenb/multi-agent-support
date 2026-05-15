@@ -1,0 +1,11 @@
+*.env*
+!.env.example
+.build
+.agents
+.codex
+.private
+.*cache
+__pycache__
+.uv-*
+.venv
+*.egg-info
