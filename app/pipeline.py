@@ -1,6 +1,7 @@
 import re
 from typing import Final, Literal
 
+from app.llm_client import classify_route_with_llm
 from app.schemas import InferenceResponse, TicketPayload
 
 PROMPT_INJECTION_MARKERS: Final[list[str]] = [
@@ -56,6 +57,15 @@ def _route(message: str) -> str:
     if "заказ" in message.lower() or ORDER_REGEX.search(message):
         return "STATUS"
     return "INFO"
+
+
+def _route_with_fallback(message: str) -> tuple[str, float, str]:
+    llm = classify_route_with_llm(message)
+    if llm is not None:
+        route, confidence, reason = llm
+        return route, confidence, reason
+    route = _route(message)
+    return route, 0.7, "Rule-based fallback"
 
 
 def _extract_order_id(message: str) -> str | None:
@@ -178,7 +188,7 @@ def handle_message(message: str) -> InferenceResponse:
             ),
         )
 
-    route = _route(message)
+    route, _, _ = _route_with_fallback(message)
     if route == "INFO":
         return _info_answer(message)
     if route == "STATUS":

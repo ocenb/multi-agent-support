@@ -3,10 +3,11 @@ name = "multi-agent-support-system"
 version = "0.1.0"
 description = "AI-powered customer support automation using Langflow, RAG, Tool Calling and Multi-Agent orchestration"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "fastapi>=0.121.1",
     "langflow>=1.8.4",
+    "openai>=2.8.0",
     "uvicorn>=0.38.0",
 ]
 
