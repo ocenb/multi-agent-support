@@ -1,12 +1,12 @@
 {
   "summary": {
     "total": 12,
-    "passed": 11,
-    "pass_rate": 91.67,
+    "passed": 12,
+    "pass_rate": 100.0,
     "route_accuracy": 100.0,
     "action_accuracy": 100.0,
     "reason_code_accuracy": 100.0,
-    "contains_accuracy": 91.67,
+    "contains_accuracy": 100.0,
     "forbidden_clear_rate": 100.0,
     "reason_code_cases": 5
   },
@@ -25,15 +25,13 @@
     },
     {
       "id": "I-002",
-      "pass": false,
-      "errors": [
-        "answer missing expected fragments"
-      ],
+      "pass": true,
+      "errors": [],
       "checks": {
         "route_match": true,
         "action_match": true,
         "reason_match": true,
-        "contains_match": false,
+        "contains_match": true,
         "forbidden_clear": true
       }
     },

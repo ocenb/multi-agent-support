@@ -2,7 +2,11 @@ import json
 import os
 from typing import Any, Literal
 
+from dotenv import load_dotenv
+
 Route = Literal["INFO", "STATUS", "BUG"]
+
+load_dotenv()
 
 DISPATCHER_SYSTEM_PROMPT = (
     "Ты маршрутизатор запросов поддержки. "
@@ -21,9 +25,9 @@ def _normalize_route(value: str) -> Route | None:
 
 
 def classify_route_with_llm(message: str) -> tuple[Route, float, str] | None:
-    api_key = os.getenv("OPENAI_API_KEY")
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    if not api_key:
+    openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+    model = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
+    if not openrouter_api_key:
         return None
 
     try:
@@ -31,7 +35,14 @@ def classify_route_with_llm(message: str) -> tuple[Route, float, str] | None:
     except Exception:
         return None
 
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(
+        api_key=openrouter_api_key,
+        base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        default_headers={
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "http://localhost"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "multi-agent-support-system"),
+        },
+    )
 
     try:
         resp = client.responses.create(

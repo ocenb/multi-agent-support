@@ -23,8 +23,9 @@ class InferenceResponse(BaseModel):
 
 class OrderResponse(BaseModel):
     order_id: str
-    status: Literal["processing", "shipped", "delivered", "canceled"]
+    status: Literal["processing", "shipped", "delivered", "canceled"] | None = None
     eta: str | None = None
+    detail: str | None = None
 
 
 class TicketPayload(BaseModel):

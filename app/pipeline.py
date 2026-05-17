@@ -2,7 +2,7 @@ import re
 from typing import Final, Literal
 
 from app.llm_client import classify_route_with_llm
-from app.schemas import InferenceResponse, TicketPayload
+from app.schemas import InferenceResponse, Route, TicketPayload
 
 PROMPT_INJECTION_MARKERS: Final[list[str]] = [
     "игнорируй все инструкции",
@@ -51,7 +51,7 @@ def _contains_any(text: str, markers: list[str]) -> bool:
     return any(marker in text_l for marker in markers)
 
 
-def _route(message: str) -> str:
+def _route(message: str) -> Route:
     if _contains_any(message, BUG_MARKERS):
         return "BUG"
     if "заказ" in message.lower() or ORDER_REGEX.search(message):
@@ -59,7 +59,7 @@ def _route(message: str) -> str:
     return "INFO"
 
 
-def _route_with_fallback(message: str) -> tuple[str, float, str]:
+def _route_with_fallback(message: str) -> tuple[Route, float, str]:
     llm = classify_route_with_llm(message)
     if llm is not None:
         route, confidence, reason = llm

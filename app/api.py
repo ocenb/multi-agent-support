@@ -1,6 +1,6 @@
 from typing import Literal, cast
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 
 from app.pipeline import ORDER_DB, handle_message
 from app.schemas import (
@@ -20,12 +20,24 @@ def health() -> dict[str, str]:
 
 
 @app.get("/order/{order_id}", response_model=OrderResponse)
-def get_order(order_id: str) -> OrderResponse:
+def get_order(order_id: str, response: Response) -> OrderResponse:
     if order_id == "9999":
-        raise HTTPException(status_code=503, detail="Order service unavailable")
+        response.status_code = 503
+        return OrderResponse(
+            order_id=order_id,
+            status=None,
+            eta=None,
+            detail="Order service unavailable",
+        )
     data = ORDER_DB.get(order_id)
     if data is None:
-        raise HTTPException(status_code=404, detail="Order not found")
+        response.status_code = 404
+        return OrderResponse(
+            order_id=order_id,
+            status=None,
+            eta=None,
+            detail="Order not found",
+        )
     status = cast(Literal["processing", "shipped", "delivered", "canceled"], data["status"])
     return OrderResponse(order_id=order_id, status=status, eta=data.get("eta"))
 
