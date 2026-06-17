@@ -68,3 +68,71 @@ def classify_route_with_llm(message: str) -> tuple[Route, float, str] | None:
         return (route, confidence, reason)
     except Exception:
         return None
+
+
+RAG_SYSTEM_PROMPT = (
+    "Ты — агент поддержки пользователей (RAG Agent).\n"
+    "Тебе предоставлены чанки из официальной базы знаний в качестве контекста.\n"
+    "Твоя задача — ответить на вопрос пользователя строго на основе предоставленного контекста.\n"
+    "Правила:\n"
+    "1. Отвечай только на основе информации из контекста. Не придумывай никаких фактов.\n"
+    "2. Если в контексте нет ответа на вопрос пользователя, "
+    "или информации недостаточно для ответа, верни JSON следующего формата:\n"
+    "{\n"
+    '  "action": "ESCALATE",\n'
+    '  "reason_code": "NO_KB_HIT",\n'
+    '  "answer": "По вашему вопросу нет данных в базе, передам оператору."\n'
+    "}\n"
+    "3. Если в контексте есть ответ, верни JSON следующего формата:\n"
+    "{\n"
+    '  "action": "ANSWER",\n'
+    '  "reason_code": null,\n'
+    '  "answer": "<твой подробный ответ на русском языке с упоминанием конкретных '
+    'фактов из базы знаний (например, сроки, цены, условия)>"\n'
+    "}\n"
+    "Верни только валидный JSON, без markdown-разметки (no ```json)."
+)
+
+
+def query_rag_with_llm(query: str, context: str) -> dict[str, Any] | None:
+    openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+    model = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
+    if not openrouter_api_key:
+        return None
+
+    try:
+        from openai import OpenAI
+    except Exception:
+        return None
+
+    client = OpenAI(
+        api_key=openrouter_api_key,
+        base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        default_headers={
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "http://localhost"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "multi-agent-support-system"),
+        },
+    )
+
+    prompt = f"Контекст:\n{context}\n\nВопрос пользователя: {query}"
+
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": RAG_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
+        raw = resp.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            lines = raw.splitlines()
+            if lines[0].startswith("```json"):
+                raw = "\n".join(lines[1:-1])
+            else:
+                raw = "\n".join(lines[1:-1])
+        payload: dict[str, Any] = json.loads(raw)
+        return payload
+    except Exception:
+        return None

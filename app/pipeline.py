@@ -1,7 +1,10 @@
 import re
-from typing import Final, Literal
+from pathlib import Path
+from typing import Any, Final, Literal
 
-from app.llm_client import classify_route_with_llm
+import chromadb
+
+from app.llm_client import classify_route_with_llm, query_rag_with_llm
 from app.schemas import InferenceResponse, Route, TicketPayload
 
 PROMPT_INJECTION_MARKERS: Final[list[str]] = [
@@ -38,12 +41,62 @@ ORDER_DB: Final[dict[str, dict[str, str]]] = {
     "7007": {"status": "delivered", "eta": "2026-05-12"},
 }
 
-KB_RESPONSES: Final[list[tuple[str, str]]] = [
-    ("срок", "Срок обработки возврата составляет до 10 рабочих дней."),
-    ("возврат", "Возврат возможен в течение 14 дней при сохранении товарного вида."),
-    ("доставк", "Доставка по РФ занимает 2-7 дней, стоимость зависит от региона."),
-    ("вернут", "Возврат возможен в течение 14 дней при сохранении товарного вида."),
-]
+_CHROMA_CLIENT: Final[chromadb.EphemeralClient] = chromadb.EphemeralClient()
+_KB_COLLECTION: Final[Any] = _CHROMA_CLIENT.create_collection(name="kb_responses")
+_KB_INDEXED = False
+
+
+def _parse_kb_markdown(filepath: Path) -> list[dict[str, str]]:
+    if not filepath.exists():
+        return []
+    content = filepath.read_text(encoding="utf-8")
+    raw_chunks = content.split("---")
+    parsed_chunks = []
+
+    for raw in raw_chunks:
+        lines = raw.strip().splitlines()
+        chunk = {}
+        for line in lines:
+            if not line.strip():
+                continue
+            if ":" in line:
+                key, val = line.split(":", 1)
+                chunk[key.strip()] = val.strip()
+        if chunk and "chunk_id" in chunk and "content" in chunk:
+            parsed_chunks.append(chunk)
+
+    return parsed_chunks
+
+
+def _detect_section(query: str) -> str | None:
+    q = query.lower()
+    if any(k in q for k in ["доставк", "привез", "получит", "срок"]):
+        return "Доставка"
+    if any(k in q for k in ["возврат", "вернут", "обмен"]):
+        return "Возврат"
+    if any(k in q for k in ["оплат", "плат", "карт", "сбп"]):
+        return "Оплата"
+    if any(k in q for k in ["гарант"]):
+        return "Гарантия"
+    if any(k in q for k in ["измен", "отмен", "состав"]):
+        return "Изменение заказа"
+    return None
+
+
+def _ensure_kb_indexed() -> None:
+    global _KB_INDEXED
+    if _KB_INDEXED:
+        return
+    kb_path = Path(__file__).parent.parent / "knowledge_base" / "info_kb_retrieval.md"
+    chunks = _parse_kb_markdown(kb_path)
+    if chunks:
+        documents = [c["content"] for c in chunks]
+        ids = [c["chunk_id"] for c in chunks]
+        metadatas = [
+            {"section": c.get("section", ""), "source": c.get("source", "")} for c in chunks
+        ]
+        _KB_COLLECTION.add(documents=documents, ids=ids, metadatas=metadatas)
+    _KB_INDEXED = True
 
 
 def _contains_any(text: str, markers: list[str]) -> bool:
@@ -74,24 +127,54 @@ def _extract_order_id(message: str) -> str | None:
 
 
 def _info_answer(message: str) -> InferenceResponse:
-    msg = message.lower()
-    for key, answer in KB_RESPONSES:
-        if key in msg:
-            return InferenceResponse(route="INFO", action="ANSWER", answer=answer)
-
-    if "гаранти" in msg and "x9" in msg:
+    if not message.strip():
         return InferenceResponse(
             route="INFO",
             action="ESCALATE",
-            answer="По этому товару нет данных в базе, передам оператору.",
+            answer="По вашему вопросу нет данных в базе, передам оператору.",
             reason_code="NO_KB_HIT",
         )
 
+    _ensure_kb_indexed()
+    section = _detect_section(message)
+    if section:
+        results = _KB_COLLECTION.query(
+            query_texts=[message], where={"section": section}, n_results=10
+        )
+    else:
+        results = _KB_COLLECTION.query(query_texts=[message], n_results=10)
+
+    retrieved_docs = []
+    if results and results["documents"]:
+        for i in range(len(results["ids"][0])):
+            doc_id = results["ids"][0][i]
+            doc_content = results["documents"][0][i]
+            retrieved_docs.append(f"[{doc_id}]: {doc_content}")
+
+    context = "\n".join(retrieved_docs)
+    llm_payload = query_rag_with_llm(message, context)
+
+    if llm_payload is None:
+        return InferenceResponse(
+            route="INFO",
+            action="ESCALATE",
+            answer="По вашему вопросу нет данных в базе, передам оператору.",
+            reason_code="NO_KB_HIT",
+        )
+
+    action: Literal["ANSWER", "ASK_CLARIFY", "ESCALATE"] = llm_payload.get("action", "ANSWER")
+    reason_code: Literal["LOW_CONFIDENCE", "POLICY_RISK", "NO_KB_HIT", "TOOL_FAILURE"] | None = (
+        llm_payload.get("reason_code")
+    )
+    answer: str = llm_payload.get(
+        "answer", "По вашему вопросу нет данных в базе, передам оператору."
+    )
+
     return InferenceResponse(
         route="INFO",
-        action="ESCALATE",
-        answer="По вашему вопросу нет данных в базе, передам оператору.",
-        reason_code="NO_KB_HIT",
+        action=action,
+        answer=answer,
+        reason_code=reason_code,
     )
 
 
