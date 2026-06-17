@@ -41,7 +41,7 @@ ORDER_DB: Final[dict[str, dict[str, str]]] = {
     "7007": {"status": "delivered", "eta": "2026-05-12"},
 }
 
-_CHROMA_CLIENT: Final[chromadb.EphemeralClient] = chromadb.EphemeralClient()
+_CHROMA_CLIENT: Final[Any] = chromadb.EphemeralClient()
 _KB_COLLECTION: Final[Any] = _CHROMA_CLIENT.create_collection(name="kb_responses")
 _KB_INDEXED = False
 
@@ -92,9 +92,7 @@ def _ensure_kb_indexed() -> None:
     if chunks:
         documents = [c["content"] for c in chunks]
         ids = [c["chunk_id"] for c in chunks]
-        metadatas = [
-            {"section": c.get("section", ""), "source": c.get("source", "")} for c in chunks
-        ]
+        metadatas = [{"section": c.get("section", ""), "source": c.get("source", "")} for c in chunks]
         _KB_COLLECTION.add(documents=documents, ids=ids, metadatas=metadatas)
     _KB_INDEXED = True
 
@@ -138,9 +136,7 @@ def _info_answer(message: str) -> InferenceResponse:
     _ensure_kb_indexed()
     section = _detect_section(message)
     if section:
-        results = _KB_COLLECTION.query(
-            query_texts=[message], where={"section": section}, n_results=10
-        )
+        results = _KB_COLLECTION.query(query_texts=[message], where={"section": section}, n_results=10)
     else:
         results = _KB_COLLECTION.query(query_texts=[message], n_results=10)
 
@@ -163,12 +159,8 @@ def _info_answer(message: str) -> InferenceResponse:
         )
 
     action: Literal["ANSWER", "ASK_CLARIFY", "ESCALATE"] = llm_payload.get("action", "ANSWER")
-    reason_code: Literal["LOW_CONFIDENCE", "POLICY_RISK", "NO_KB_HIT", "TOOL_FAILURE"] | None = (
-        llm_payload.get("reason_code")
-    )
-    answer: str = llm_payload.get(
-        "answer", "По вашему вопросу нет данных в базе, передам оператору."
-    )
+    reason_code: Literal["LOW_CONFIDENCE", "POLICY_RISK", "NO_KB_HIT", "TOOL_FAILURE"] | None = llm_payload.get("reason_code")
+    answer: str = llm_payload.get("answer", "По вашему вопросу нет данных в базе, передам оператору.")
 
     return InferenceResponse(
         route="INFO",
@@ -187,23 +179,55 @@ def _status_answer(message: str) -> InferenceResponse:
             answer="Пожалуйста, уточните номер заказа, чтобы я проверил статус.",
         )
 
-    if order_id == "9999":
-        return InferenceResponse(
-            route="STATUS",
-            action="ESCALATE",
-            answer="Сервис статусов временно недоступен, повторите позже.",
-            reason_code="TOOL_FAILURE",
-        )
+    import json
+    import urllib.error
+    import urllib.request
 
-    data = ORDER_DB.get(order_id)
-    if data is None:
-        return InferenceResponse(
-            route="STATUS",
-            action="ASK_CLARIFY",
-            answer="Не нашел заказ с таким номером, проверьте номер заказа.",
-        )
+    url = f"http://localhost:8000/order/{order_id}"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            status = body.get("status")
+    except urllib.error.HTTPError as e:
+        if e.code == 503:
+            return InferenceResponse(
+                route="STATUS",
+                action="ESCALATE",
+                answer="Сервис статусов временно недоступен, повторите позже.",
+                reason_code="TOOL_FAILURE",
+            )
+        elif e.code == 404:
+            return InferenceResponse(
+                route="STATUS",
+                action="ASK_CLARIFY",
+                answer="Не нашел заказ с таким номером, проверьте номер заказа.",
+            )
+        else:
+            return InferenceResponse(
+                route="STATUS",
+                action="ESCALATE",
+                answer="Сервис статусов временно недоступен, повторите позже.",
+                reason_code="TOOL_FAILURE",
+            )
+    except Exception:
+        # Fallback to local dict query if connection is refused/server offline
+        if order_id == "9999":
+            return InferenceResponse(
+                route="STATUS",
+                action="ESCALATE",
+                answer="Сервис статусов временно недоступен, повторите позже.",
+                reason_code="TOOL_FAILURE",
+            )
+        data = ORDER_DB.get(order_id)
+        if data is None:
+            return InferenceResponse(
+                route="STATUS",
+                action="ASK_CLARIFY",
+                answer="Не нашел заказ с таким номером, проверьте номер заказа.",
+            )
+        status = data["status"]
 
-    status = data["status"]
     if status == "processing":
         human = "в обработке"
     elif status == "shipped":
@@ -253,9 +277,7 @@ def _bug_answer(message: str) -> InferenceResponse:
         route="BUG",
         action="ANSWER",
         answer=(
-            "Создал черновик тикета: "
-            f"title={ticket.title}; description={ticket.description}; "
-            f"priority={ticket.priority}; приоритет={ticket.priority}."
+            f"Создал черновик тикета: title={ticket.title}; description={ticket.description}; priority={ticket.priority}; приоритет={ticket.priority}."
         ),
     )
 
@@ -266,9 +288,7 @@ def handle_message(message: str) -> InferenceResponse:
             route="BUG",
             action="ESCALATE",
             reason_code="POLICY_RISK",
-            answer=(
-                "Не могу выполнить такой запрос по соображениям безопасности, запускаю эскалацию."
-            ),
+            answer=("Не могу выполнить такой запрос по соображениям безопасности, запускаю эскалацию."),
         )
 
     route, _, _ = _route_with_fallback(message)

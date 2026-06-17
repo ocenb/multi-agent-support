@@ -125,7 +125,10 @@ def query_rag_with_llm(query: str, context: str) -> dict[str, Any] | None:
             ],
             temperature=0,
         )
-        raw = resp.choices[0].message.content.strip()
+        content = resp.choices[0].message.content
+        if content is None:
+            return None
+        raw = content.strip()
         if raw.startswith("```"):
             lines = raw.splitlines()
             if lines[0].startswith("```json"):

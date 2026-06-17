@@ -1,13 +1,10 @@
 export UV_CACHE_DIR ?= $(CURDIR)/.cache/uv
-export MYPY_CACHE_DIR ?= $(CURDIR)/.cache/mypy
 export RUFF_CACHE_DIR ?= $(CURDIR)/.cache/ruff
 export DO_NOT_TRACK ?= true
 
-include .env
-
 .PHONY: run langflow lint run-api run-eval run-langflow-api run-eval-langflow
 
-run:
+run: .env
 	uv run main.py
 
 run-api:
@@ -16,10 +13,15 @@ run-api:
 langflow:
 	uv run langflow run
 
+fix:
+	-uv run ruff format .
+	-uv run ruff check --fix .
+	uv run mypy .
+
 lint:
-	-uv run ruff format . 
-	-uv run ruff check --fix . 
-	-uv run mypy . 
+	uv run ruff format --check .
+	uv run ruff check .
+	uv run mypy .
 
 run-eval:
 	uv run python -m scripts.run_eval --dataset datasets/eval_seed.jsonl --out reports/predictions.jsonl
@@ -33,3 +35,7 @@ run-eval-langflow:
 	@test -n "$(FLOW_ID)" || (echo "FLOW_ID is required. Example: make run-eval-langflow FLOW_ID=<id>" && exit 1)
 	uv run python -m scripts.run_eval_langflow --dataset datasets/eval_seed.jsonl --out reports/predictions_langflow.jsonl --flow-id "$(FLOW_ID)" --base-url "$(LANGFLOW_URL)" --api-key "$(LANGFLOW_API_KEY)"
 	uv run python -m scripts.eval_runner --dataset datasets/eval_seed.jsonl --predictions reports/predictions_langflow.jsonl --report reports/eval_report_langflow.json
+
+.env:
+	@echo ".env file not found. Copying from .env.example..."
+	cp .env.example .env

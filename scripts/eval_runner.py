@@ -83,9 +83,7 @@ def evaluate_case(expected: dict[str, Any], actual: dict[str, Any]) -> dict[str,
     result["checks"]["reason_match"] = reason_ok
     if reason_required and not reason_ok:
         result["pass"] = False
-        result["errors"].append(
-            f"reason_code mismatch: expected={exp_reason} actual={actual.get('reason_code')}"
-        )
+        result["errors"].append(f"reason_code mismatch: expected={exp_reason} actual={actual.get('reason_code')}")
 
     answer = _norm(str(actual.get("answer", "")))
     required_parts = [_norm(x) for x in expected.get("expected_contains", [])]
@@ -148,9 +146,7 @@ def summarize(results: list[dict[str, Any]], expected_rows: list[dict[str, Any]]
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Evaluate model outputs against eval JSONL dataset."
-    )
+    parser = argparse.ArgumentParser(description="Evaluate model outputs against eval JSONL dataset.")
     parser.add_argument(
         "--dataset",
         required=True,
@@ -161,10 +157,7 @@ def main() -> int:
         "--predictions",
         required=True,
         type=Path,
-        help=(
-            "Path to model predictions JSONL with fields: "
-            "id, route, action, reason_code (optional), answer"
-        ),
+        help=("Path to model predictions JSONL with fields: id, route, action, reason_code (optional), answer"),
     )
     parser.add_argument(
         "--report",

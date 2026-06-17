@@ -187,10 +187,7 @@ def main() -> int:
         "--use-expected-route",
         action=argparse.BooleanOptionalAction,
         default=False,
-        help=(
-            "Use expected_route from dataset when flow output does not provide route. "
-            "Disabled by default to avoid evaluation leakage."
-        ),
+        help=("Use expected_route from dataset when flow output does not provide route. Disabled by default to avoid evaluation leakage."),
     )
     args = parser.parse_args()
 
